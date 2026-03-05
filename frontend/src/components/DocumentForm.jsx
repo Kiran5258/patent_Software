@@ -65,7 +65,6 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
             let defaults = {};
             if (user.type === 'attorney') {
                 defaults.patent_officer = "A. Albert Francis";
-                defaults.agentRole = "Application Agent";
                 defaults.PANO = "INPA-4655";
                 defaults.Name_of_Authorize = "A. Albert Francis";
                 defaults.Mobile_No = "9943235198";
@@ -233,7 +232,7 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
             <form onSubmit={handleSubmit}>
                 <div className="input-group">
                     <label>Project Title</label>
-                    <input name="TITLE" placeholder="Enter title" value={formData.TITLE} onChange={handleInputChange} required />
+                    <input name="TITLE" placeholder="Enter title" value={formData.TITLE || ''} onChange={handleInputChange} required />
                 </div>
 
                 {!initialData && user?.type !== 'attorney' && (
@@ -252,11 +251,11 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                 <div className="grid-cols-2">
                     <div className="input-group">
                         <label>Applicant Name</label>
-                        <input name="APPLICANT_NAME" value={formData.APPLICANT_NAME} onChange={handleInputChange} required />
+                        <input name="APPLICANT_NAME" value={formData.APPLICANT_NAME || ''} onChange={handleInputChange} required />
                     </div>
                     <div className="input-group">
                         <label>Email ID</label>
-                        <input type="email" name="email_id" value={formData.email_id} onChange={handleInputChange} required />
+                        <input type="email" name="email_id" value={formData.email_id || ''} onChange={handleInputChange} required />
                     </div>
                 </div>
 
@@ -268,12 +267,12 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                 <div className="grid-cols-2">
                     <div className="input-group">
                         <label>Patent Officer / Authorizer</label>
-                        <input name="patent_officer" value={formData.patent_officer} onChange={handleInputChange} required />
+                        <input name="patent_officer" value={formData.patent_officer || ''} onChange={handleInputChange} required />
                     </div>
                     {user?.type !== 'offline' && (
                         <div className="input-group">
                             <label>PANO</label>
-                            <input name="PANO" value={formData.PANO} onChange={handleInputChange} />
+                            <input name="PANO" value={formData.PANO || ''} onChange={handleInputChange} />
                         </div>
                     )}
                 </div>
@@ -283,11 +282,11 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                         <div className="grid-cols-2">
                             <div className="input-group">
                                 <label>Mobile No</label>
-                                <input name="Mobile_No" value={formData.Mobile_No} onChange={handleInputChange} />
+                                <input name="Mobile_No" value={formData.Mobile_No || ''} onChange={handleInputChange} />
                             </div>
                             <div className="input-group">
                                 <label>Name of Authorize</label>
-                                <input name="Name_of_Authorize" value={formData.Name_of_Authorize} onChange={handleInputChange} />
+                                <input name="Name_of_Authorize" value={formData.Name_of_Authorize || ''} onChange={handleInputChange} />
                             </div>
                         </div>
                         <div className="grid-cols-2">
@@ -416,7 +415,7 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                         <div style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <CheckCircle size={20} /> Documents ready!
                         </div>
-                        {downloadUrl && user.role === 'admin' && (
+                        {downloadUrl && user?.role === 'admin' && (
                             <a href={`http://localhost:5001${downloadUrl}`} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ marginTop: '1rem', display: 'inline-flex' }}>
                                 Download ZIP
                             </a>

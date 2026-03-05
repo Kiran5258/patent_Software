@@ -139,7 +139,7 @@ function App() {
 
       <main style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {editingDoc ? (
-          <DocumentForm initialData={editingDoc} onCancel={handleCancelEdit} />
+          <DocumentForm initialData={editingDoc} onCancel={handleCancelEdit} user={user} />
         ) : (
           <>
             {activeTab === 'documents' && <DocumentForm onCancel={handleCancelEdit} user={user} />}
