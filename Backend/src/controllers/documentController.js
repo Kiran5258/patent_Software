@@ -28,8 +28,7 @@ export const createDocuments = async (req, res) => {
 
             const filePath = await generateFigureDoc({
                 applicantName,
-                agentName: patent_officer,
-                agentRole: "Applicant Agent",
+                patent_officer,
                 figures,
                 signaturePath
             });
@@ -75,8 +74,6 @@ export const createDocuments = async (req, res) => {
             claims,
             patent_officer,
             date,
-            agentName,
-            agentRole,
             PANO,
             Name_of_Authorize,
             Mobile_No,
@@ -88,7 +85,7 @@ export const createDocuments = async (req, res) => {
             return res.status(400).json({ message: "All main fields are required" });
         }
 
-        if (!patent_officer && !agentName) {
+        if (!patent_officer) {
             return res.status(400).json({ message: "Patent Officer name is required" });
         }
 
@@ -102,8 +99,8 @@ export const createDocuments = async (req, res) => {
         const figureSigFile = req.files ? req.files.find(f => f.fieldname === 'signature') : null;
 
         const effectiveSignaturePath = (officerSigFile ? officerSigFile.path : null) || (figureSigFile ? figureSigFile.path : null);
-        const effectiveOfficerName = patent_officer || agentName || "A. Albert Francis";
-        const effectiveAgentRole = agentRole || "Applicant Agent";
+        const effectiveOfficerName = patent_officer || "A. Albert Francis";
+        const effectiveAgentRole = "Official Jurisdiction";
 
         const getOrdinalDay = (n) => {
             const s = ["th", "st", "nd", "rd"];
@@ -394,8 +391,7 @@ export const updateDocuments = async (req, res) => {
             if (figures.length > 0 || signaturePath) {
                 filePath = await generateFigureDoc({
                     applicantName: applicantName || figureDoc.applicantName,
-                    agentName: patent_officer || figureDoc.patent_officer,
-                    agentRole: "Applicant Agent",
+                    patent_officer: patent_officer || figureDoc.patent_officer,
                     figures: figures.length > 0 ? figures : figureDoc.figures,
                     signaturePath: signaturePath || figureDoc.signaturePath
                 });
@@ -515,8 +511,7 @@ export const updateDocuments = async (req, res) => {
             try {
                 const figureDocPath = await generateFigureDoc({
                     applicantName: APPLICANT_NAME || existingDoc.APPLICANT_NAME,
-                    agentName: patent_officer || existingDoc.patent_officer,
-                    agentRole: "Official Jurisdiction",
+                    patent_officer: patent_officer || existingDoc.patent_officer,
                     figures,
                     signaturePath
                 });

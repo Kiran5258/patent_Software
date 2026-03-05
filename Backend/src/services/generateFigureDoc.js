@@ -14,8 +14,7 @@ import {
 
 export const generateFigureDoc = async ({
   applicantName,
-  agentName,
-  agentRole,
+  patent_officer,
   figures, // array of image file paths
   signaturePath // optional path to signature image
 }) => {
@@ -51,22 +50,11 @@ export const generateFigureDoc = async ({
               alignment: AlignmentType.RIGHT,
               children: [
                 new TextRun({
-                  text: agentName || "Patent Officer",
+                  text: patent_officer || "Patent Officer",
                   bold: true,
                 }),
               ],
             }),
-            ...(agentRole ? [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                children: [
-                  new TextRun({
-                    text: agentRole,
-                    bold: true,
-                  }),
-                ],
-              })
-            ] : []),
             ...(signaturePath ? [
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
