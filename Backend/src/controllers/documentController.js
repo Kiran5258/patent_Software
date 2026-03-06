@@ -2,6 +2,13 @@ import archiver from "archiver";
 import ImageModule from "docxtemplater-image-module-free";
 import { uploadBuffer, deleteFile } from "../utils/cloudinary.js";
 import PatentDocument from "../models/PatentDocument.js";
+import FigureDocument from "../models/FigureDocument.js";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import PizZip from "pizzip";
+import Docxtemplater from "docxtemplater";
+import { generateFigureDoc } from "../services/generateFigureDoc.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
