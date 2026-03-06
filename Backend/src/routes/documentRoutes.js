@@ -5,13 +5,16 @@ import {
   getAllDocuments,
   getDocumentById,
   updateDocuments,
-  deleteDocument
+  deleteDocument,
+  proxyDownload
 } from "../controllers/documentController.js";
-import { upload } from "../middleware/upload.js";
 import { authenticate, authorizeAdmin } from "../middleware/auth.js";
+
+import { upload } from "../middleware/upload.js";
 
 const router = express.Router();
 
+router.get("/download-proxy", proxyDownload);
 router.post("/", upload.any(), createDocuments);
 router.get("/", authenticate, authorizeAdmin, getAllDocuments);
 router.get("/:id", authenticate, authorizeAdmin, getDocumentById);

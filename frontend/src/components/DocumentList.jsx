@@ -169,7 +169,7 @@ const DocumentList = ({ onEdit }) => {
 
                                 {doc.downloadFile && (
                                     <a
-                                        href={`http://localhost:5001/api/download/${doc.downloadFile}`}
+                                        href={`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/download-proxy?url=${encodeURIComponent(doc.downloadFile?.url)}&filename=${encodeURIComponent(doc.type === 'patent' ? `${doc.title}.zip` : `${doc.title}.docx`)}`}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="btn-primary"

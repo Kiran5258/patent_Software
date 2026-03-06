@@ -24,10 +24,9 @@ const FigureUpload = ({ initialData, onCancel, user }) => {
 
     const getImgUrl = (file) => {
         if (!file) return '';
-        if (typeof file === 'string') {
-            return `http://localhost:5001/${file}`;
-        }
-        return URL.createObjectURL(file);
+        if (file.url) return file.url; // From Cloudinary
+        if (typeof file === 'string') return file;
+        return URL.createObjectURL(file); // Local preview
     };
 
     const onDrop = useCallback((acceptedFiles) => {
@@ -58,12 +57,15 @@ const FigureUpload = ({ initialData, onCancel, user }) => {
                 if (file instanceof File) {
                     formData.append('figures', file);
                 } else {
-                    formData.append('existingFigures', file);
+                    // Keep existing figures on update
+                    formData.append('existingFigures', JSON.stringify(file));
                 }
             });
 
             if (signature instanceof File) {
                 formData.append('signature', signature);
+            } else if (signature) {
+                formData.append('existingSignature', JSON.stringify(signature));
             }
 
             let response;
@@ -86,7 +88,7 @@ const FigureUpload = ({ initialData, onCancel, user }) => {
                 if (onCancel) onCancel();
             }, 3000);
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to generate figure document');
+            setError(err.response?.data?.message || 'Failed to generate figure document');
         } finally {
             setLoading(false);
         }
@@ -173,7 +175,7 @@ const FigureUpload = ({ initialData, onCancel, user }) => {
                     <div className="success-msg animate-in" style={{ marginTop: '1rem' }}>
                         <CheckCircle size={20} /> Success! Document generated.
                         {downloadUrl && (
-                            <a href={`http://localhost:5001${downloadUrl}`} download className="btn-secondary" style={{ marginLeft: '1rem', padding: '0.2rem 0.5rem' }}>
+                            <a href={`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/download-proxy?url=${encodeURIComponent(downloadUrl)}&filename=figures.docx`} target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ marginLeft: '1rem', padding: '0.2rem 0.5rem' }}>
                                 Download
                             </a>
                         )}

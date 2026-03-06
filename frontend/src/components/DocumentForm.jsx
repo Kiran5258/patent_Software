@@ -111,10 +111,9 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
 
     const getImgUrl = (file) => {
         if (!file) return '';
-        if (typeof file === 'string') {
-            return `http://localhost:5001/${file}`;
-        }
-        return URL.createObjectURL(file);
+        if (file.url) return file.url; // From Cloudinary
+        if (typeof file === 'string') return file;
+        return URL.createObjectURL(file); // Local preview
     };
 
     const handleInputChange = (e) => {
@@ -155,29 +154,32 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
 
         try {
             const data = new FormData();
+
+            // Append all textual fields
             Object.keys(formData).forEach(key => {
                 if (key !== 'inventors' && key !== 'officer_signature' && key !== 'figureImages') {
                     data.append(key, formData[key]);
                 }
             });
 
+            // Append inventors as JSON string
+            data.append('inventors', JSON.stringify(formData.inventors));
+
+            // Append signature
             if (formData.officer_signature instanceof File) {
                 data.append('officer_signature', formData.officer_signature);
-            }
-            // For editing, we might need to tell backend about the existing signature if not changed
-            if (typeof formData.officer_signature === 'string') {
-                data.append('existing_signature', formData.officer_signature);
+            } else if (formData.officer_signature) {
+                data.append('existingSignature', JSON.stringify(formData.officer_signature));
             }
 
+            // Append figures
             formData.figureImages.forEach(f => {
                 if (f instanceof File) {
                     data.append('figures', f);
                 } else {
-                    data.append('existingFigures', f);
+                    data.append('existingFigures', JSON.stringify(f));
                 }
             });
-
-            data.append('inventors', JSON.stringify(formData.inventors));
 
             let response;
             if (formData._id) {
@@ -206,7 +208,7 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                 if (onCancel && formData._id) onCancel();
             }, 5000);
         } catch (err) {
-            setError(err.response?.data?.message || 'Failed to generate documents.');
+            setError(err.response?.data?.message || err.message || 'Failed to generate documents.');
         } finally {
             setLoading(false);
         }
@@ -416,7 +418,13 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                             <CheckCircle size={20} /> Documents ready!
                         </div>
                         {downloadUrl && user?.role === 'admin' && (
-                            <a href={`http://localhost:5001${downloadUrl}`} target="_blank" rel="noopener noreferrer" className="btn-primary" style={{ marginTop: '1rem', display: 'inline-flex' }}>
+                            <a
+                                href={`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/download-proxy?url=${encodeURIComponent(downloadUrl)}&filename=patent_docs.zip`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="btn-primary"
+                                style={{ marginTop: '1rem', display: 'inline-flex' }}
+                            >
                                 Download ZIP
                             </a>
                         )}

@@ -13,12 +13,25 @@ cloudinary.config({
  * Uploads a buffer to Cloudinary
  * @param {Buffer} buffer - The file buffer
  * @param {string} folder - The folder to upload to in Cloudinary
+ * @param {object} options - Additional Cloudinary upload options
  * @returns {Promise<{url: string, public_id: string}>}
  */
-export const uploadBuffer = (buffer, folder = 'patent_software') => {
+export const uploadBuffer = (buffer, folder = 'patent_software', options = {}) => {
+    const uploadOptions = {
+        folder,
+        resource_type: 'auto',
+        ...options
+    };
+
+    // If we provide a public_id, we want Cloudinary to respect it
+    if (options.public_id) {
+        uploadOptions.use_filename = true;
+        uploadOptions.unique_filename = false;
+    }
+
     return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
-            { folder, resource_type: 'auto' },
+            uploadOptions,
             (error, result) => {
                 if (error) return reject(error);
                 resolve({

@@ -9,9 +9,15 @@ import { fileURLToPath } from "url";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { generateFigureDoc } from "../services/generateFigureDoc.js";
+import axios from "axios";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const getBufferFromUrl = async (url) => {
+    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    return Buffer.from(response.data);
+};
 
 // POST /api/
 export const createDocuments = async (req, res) => {
@@ -41,7 +47,10 @@ export const createDocuments = async (req, res) => {
                 signatureBuffer: signatureFile?.buffer
             });
 
-            const docxUpload = await uploadBuffer(docxBuffer, 'output');
+            const docxUpload = await uploadBuffer(docxBuffer, 'output', {
+                public_id: `figures_${Date.now()}.docx`,
+                resource_type: 'raw'
+            });
 
             const newDoc = await FigureDocument.create({
                 applicantName,
@@ -70,11 +79,6 @@ export const createDocuments = async (req, res) => {
             detailed_description, abstract, claims, patent_officer, date,
             PANO, Name_of_Authorize, Mobile_No
         } = body;
-
-        if (!TITLE || !APPLICANT_NAME || !APPLICANT_ADDRESS || !email_id || !technical_field || !background || !date ||
-            !objective || !summary || !brief_description || !detailed_description || !abstract || !claims || !patent_officer) {
-            return res.status(400).json({ message: "All fields are required" });
-        }
 
         const figureFiles = req.files ? req.files.filter(f => f.fieldname === 'figures') : [];
         const officerSigFile = req.files ? req.files.find(f => f.fieldname === 'officer_signature') : null;
@@ -133,7 +137,10 @@ export const createDocuments = async (req, res) => {
             });
 
             const docBuffer = doc.getZip().generate({ type: "nodebuffer" });
-            const docUpload = await uploadBuffer(docBuffer, 'output');
+            const docUpload = await uploadBuffer(docBuffer, 'output', {
+                public_id: `${template.replace(".docx", "")}_${Date.now()}.docx`,
+                resource_type: 'raw'
+            });
             uploadedTemplates.push(docUpload);
             docBuffers.push({ buffer: docBuffer, name: `${template.replace(".docx", "")}.docx` });
         }
@@ -146,7 +153,10 @@ export const createDocuments = async (req, res) => {
                     figures: figureFiles.map(f => ({ buffer: f.buffer, originalname: f.originalname })),
                     signatureBuffer: sigFile?.buffer
                 });
-                const figDocUpload = await uploadBuffer(figureDocBuffer, 'output');
+                const figDocUpload = await uploadBuffer(figureDocBuffer, 'output', {
+                    public_id: `Figures_${Date.now()}.docx`,
+                    resource_type: 'raw'
+                });
                 uploadedTemplates.push(figDocUpload);
                 docBuffers.push({ buffer: figureDocBuffer, name: "Figures.docx" });
             } catch (e) { console.error("Figure gen error:", e); }
@@ -163,7 +173,10 @@ export const createDocuments = async (req, res) => {
             archive.finalize();
         });
 
-        const zipUpload = await uploadBuffer(zipBuffer, 'output');
+        const zipUpload = await uploadBuffer(zipBuffer, 'output', {
+            public_id: `patent_docs_${Date.now()}.zip`,
+            resource_type: 'raw'
+        });
 
         const newDoc = await PatentDocument.create({
             ...body,
@@ -207,7 +220,7 @@ export const getAllDocuments = async (req, res) => {
             type: "figure",
             title: `Figures: ${d.applicantName}`,
             applicant: d.applicantName,
-            downloadFile: path.basename(d.filePath)
+            downloadFile: d.filePath
         }));
 
         const combined = [...patents, ...figures].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -302,37 +315,60 @@ export const updateDocuments = async (req, res) => {
             const figureFiles = req.files ? req.files.filter(f => f.fieldname === 'figures') : [];
             const signatureFile = req.files ? req.files.find(f => f.fieldname === 'signature') : null;
 
-            let figureUploads = figureDoc.figures;
+            let figureUploads = [];
+            if (body.existingFigures) {
+                const existing = Array.isArray(body.existingFigures) ? body.existingFigures : [body.existingFigures];
+                figureUploads = existing.map(f => typeof f === 'string' ? JSON.parse(f) : f);
+            }
+
             if (figureFiles.length > 0) {
-                // Delete old figures
-                for (const f of figureDoc.figures) {
-                    if (f.public_id) await deleteFile(f.public_id);
-                }
-                figureUploads = await Promise.all(
+                const newUploads = await Promise.all(
                     figureFiles.map(f => uploadBuffer(f.buffer, 'figures'))
                 );
+                figureUploads = [...figureUploads, ...newUploads];
             }
 
             let signatureData = figureDoc.signaturePath;
             if (signatureFile) {
                 if (figureDoc.signaturePath?.public_id) await deleteFile(figureDoc.signaturePath.public_id);
                 signatureData = await uploadBuffer(signatureFile.buffer, 'signatures');
+            } else if (body.existingSignature) {
+                signatureData = typeof body.existingSignature === 'string' ? JSON.parse(body.existingSignature) : body.existingSignature;
             }
 
             const docxBuffer = await generateFigureDoc({
                 applicantName: applicantName || figureDoc.applicantName,
                 patent_officer: patent_officer || figureDoc.patent_officer,
-                figures: figureFiles.length > 0 ? figureFiles.map(f => ({ buffer: f.buffer, originalname: f.originalname })) : figureDoc.figures, // This might need fix if figures didn't change (we'd need to re-download or store buffers)
-                signatureBuffer: signatureFile ? signatureFile.buffer : null // Simple logic: only re-gen if files provided
+                figures: figureUploads.map((f, i) => ({ buffer: null, url: f.url, originalname: `figure_${i}` })), // This will need a fix in generateFigureDoc if it only takes buffers
+                signatureBuffer: null // Similar here
             });
-            // Note: generateFigureDoc currently expects buffers. If no new files, we might need to skip re-gen or handle better.
-            // For now, let's assume if update is called with files, we re-gen.
+            // NOTE: generateFigureDoc currently expects buffers. To generate from URLs, we'd need to fetch them.
+            // For now, let's assume we re-fetch buffers if needed.
 
-            let docxUpload = figureDoc.filePath;
-            if (figureFiles.length > 0 || signatureFile) {
-                if (figureDoc.filePath?.public_id) await deleteFile(figureDoc.filePath.public_id);
-                docxUpload = await uploadBuffer(docxBuffer, 'output');
+            const figuresWithBuffers = await Promise.all(
+                figureUploads.map(async f => ({
+                    buffer: await getBufferFromUrl(f.url),
+                    originalname: f.public_id
+                }))
+            );
+
+            let sigBuffer = null;
+            if (signatureData) {
+                sigBuffer = await getBufferFromUrl(signatureData.url);
             }
+
+            const finalDocxBuffer = await generateFigureDoc({
+                applicantName: applicantName || figureDoc.applicantName,
+                patent_officer: patent_officer || figureDoc.patent_officer,
+                figures: figuresWithBuffers,
+                signatureBuffer: sigBuffer
+            });
+
+            if (figureDoc.filePath?.public_id) await deleteFile(figureDoc.filePath.public_id);
+            const docxUpload = await uploadBuffer(finalDocxBuffer, 'output', {
+                public_id: `figures_${Date.now()}.docx`,
+                resource_type: 'raw'
+            });
 
             const updatedDoc = await FigureDocument.findByIdAndUpdate(
                 id,
@@ -361,31 +397,35 @@ export const updateDocuments = async (req, res) => {
             try { body.inventors = JSON.parse(body.inventors); } catch (e) { }
         }
 
-        const figureFiles = req.files ? req.files.filter(f => f.fieldname === 'figures') : [];
-        const officerSigFile = req.files ? req.files.find(f => f.fieldname === 'officer_signature') : null;
-        const figureSigFile = req.files ? req.files.find(f => f.fieldname === 'signature') : null;
-        const sigFile = officerSigFile || figureSigFile;
-
-        let figureUploads = existingDoc.figureImages;
-        if (figureFiles.length > 0) {
-            for (const f of existingDoc.figureImages) {
-                if (f.public_id) await deleteFile(f.public_id);
-            }
-            figureUploads = await Promise.all(figureFiles.map(f => uploadBuffer(f.buffer, 'figures')));
-        }
-
-        let sigData = existingDoc.officer_signature;
-        if (sigFile) {
-            if (existingDoc.officer_signature?.public_id) await deleteFile(existingDoc.officer_signature.public_id);
-            sigData = await uploadBuffer(sigFile.buffer, 'signatures');
-        }
-
         const {
             TITLE, APPLICANT_NAME, APPLICANT_ADDRESS, email_id, technical_field,
             inventors, objective, summary, background, brief_description,
             detailed_description, abstract, claims, patent_officer, date,
             PANO, Name_of_Authorize, Mobile_No
         } = body;
+
+        const figureFiles = req.files ? req.files.filter(f => f.fieldname === 'figures') : [];
+        const officerSigFile = req.files ? req.files.find(f => f.fieldname === 'officer_signature') : null;
+        const figureSigFile = req.files ? req.files.find(f => f.fieldname === 'signature') : null;
+        const sigFile = officerSigFile || figureSigFile;
+
+        let figureUploads = [];
+        if (body.existingFigures) {
+            const existing = Array.isArray(body.existingFigures) ? body.existingFigures : [body.existingFigures];
+            figureUploads = existing.map(f => typeof f === 'string' ? JSON.parse(f) : f);
+        }
+        if (figureFiles.length > 0) {
+            const newUploads = await Promise.all(figureFiles.map(f => uploadBuffer(f.buffer, 'figures')));
+            figureUploads = [...figureUploads, ...newUploads];
+        }
+
+        let sigData = existingDoc.officer_signature;
+        if (sigFile) {
+            if (existingDoc.officer_signature?.public_id) await deleteFile(existingDoc.officer_signature.public_id);
+            sigData = await uploadBuffer(sigFile.buffer, 'signatures');
+        } else if (body.existingSignature) {
+            sigData = typeof body.existingSignature === 'string' ? JSON.parse(body.existingSignature) : body.existingSignature;
+        }
 
         const getOrdinalDay = (n) => {
             const s = ["th", "st", "nd", "rd"];
@@ -405,11 +445,23 @@ export const updateDocuments = async (req, res) => {
         const finalFormattedDate = formatDateCustom(date || existingDoc.date);
         const processedInventors = (inventors || existingDoc.inventors).map(inv => ({ ...inv, date: finalFormattedDate }));
 
+        const figuresWithBuffers = await Promise.all(
+            figureUploads.map(async f => ({
+                buffer: await getBufferFromUrl(f.url),
+                originalname: f.public_id
+            }))
+        );
+
+        let sigBuffer = null;
+        if (sigData) {
+            sigBuffer = await getBufferFromUrl(sigData.url);
+        }
+
         const templates = ["Form 1.docx", "Form 2.docx", "Form 3.docx", "Form 5.docx", "Form 18.docx", "Form 28.docx"];
         const uploadedTemplates = [];
         const docBuffers = [];
 
-        // Simplified: Always re-generate all documents on update to ensure consistency
+        // Cleanup old generated files
         if (existingDoc.files) {
             for (const f of existingDoc.files) if (f.public_id) await deleteFile(f.public_id);
         }
@@ -443,25 +495,31 @@ export const updateDocuments = async (req, res) => {
                 detailed_description: detailed_description || existingDoc.detailed_description,
                 abstract: abstract || existingDoc.abstract,
                 claims: claims || existingDoc.claims,
-                signature: sigFile?.buffer || null, // Note: sigFile.buffer is only available if new file uploaded.
+                signature: sigBuffer,
                 inventors: processedInventors
             });
 
             const docBuffer = doc.getZip().generate({ type: "nodebuffer" });
-            const docUpload = await uploadBuffer(docBuffer, 'output');
+            const docUpload = await uploadBuffer(docBuffer, 'output', {
+                public_id: `${template.replace(".docx", "")}_${Date.now()}.docx`,
+                resource_type: 'raw'
+            });
             uploadedTemplates.push(docUpload);
             docBuffers.push({ buffer: docBuffer, name: `${template.replace(".docx", "")}.docx` });
         }
 
-        if (figureFiles.length > 0) {
+        if (figuresWithBuffers.length > 0) {
             try {
                 const figureDocBuffer = await generateFigureDoc({
                     applicantName: APPLICANT_NAME || existingDoc.APPLICANT_NAME,
                     patent_officer: patent_officer || existingDoc.patent_officer,
-                    figures: figureFiles.map(f => ({ buffer: f.buffer, originalname: f.originalname })),
-                    signatureBuffer: sigFile?.buffer
+                    figures: figuresWithBuffers,
+                    signatureBuffer: sigBuffer
                 });
-                const figDocUpload = await uploadBuffer(figureDocBuffer, 'output');
+                const figDocUpload = await uploadBuffer(figureDocBuffer, 'output', {
+                    public_id: `Figures_${Date.now()}.docx`,
+                    resource_type: 'raw'
+                });
                 uploadedTemplates.push(figDocUpload);
                 docBuffers.push({ buffer: figureDocBuffer, name: "Figures.docx" });
             } catch (e) { console.error("Figure re-gen error:", e); }
@@ -477,7 +535,10 @@ export const updateDocuments = async (req, res) => {
             archive.finalize();
         });
 
-        const zipUpload = await uploadBuffer(zipBuffer, 'output');
+        const zipUpload = await uploadBuffer(zipBuffer, 'output', {
+            public_id: `patent_docs_${Date.now()}.zip`,
+            resource_type: 'raw'
+        });
 
         const updatedDoc = await PatentDocument.findByIdAndUpdate(
             id,
@@ -500,5 +561,25 @@ export const updateDocuments = async (req, res) => {
     } catch (error) {
         console.error("Update error:", error);
         res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+// GET /api/download-proxy
+export const proxyDownload = async (req, res) => {
+    try {
+        const { url, filename } = req.query;
+        if (!url) return res.status(400).json({ message: "URL is required" });
+
+        const response = await axios.get(url, { responseType: 'arraybuffer' });
+
+        const ext = filename.split('.').pop();
+        const contentType = ext === 'zip' ? 'application/zip' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.send(Buffer.from(response.data));
+    } catch (error) {
+        console.error("Proxy download error:", error);
+        res.status(500).json({ message: "Failed to download from cloud" });
     }
 };

@@ -2,11 +2,13 @@
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "seed": "node src/scripts/seedAdmin.js"
+    "seed": "node src/scripts/seedAdmin.js",
+    "build": "echo 'No build step required for backend'"
   },
   "type": "module",
   "dependencies": {
     "archiver": "^7.0.1",
+    "axios": "^1.13.6",
     "cloudinary": "^2.9.0",
     "cors": "^2.8.6",
     "docx": "^9.6.0",

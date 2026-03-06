@@ -44,7 +44,7 @@ const Login = ({ onLoginSuccess }) => {
         const payload = isSignup ? { email, password, role, type, offlineMode: type === 'offline' ? offlineMode : null } : { email, password };
 
         try {
-            const response = await axios.post(`http://localhost:5001${endpoint}`, payload);
+            const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/auth${isSignup ? '/signup' : '/login'}`, payload);
             if (!isSignup) {
                 onLoginSuccess(response.data);
             } else {
