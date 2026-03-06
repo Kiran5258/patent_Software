@@ -24,10 +24,26 @@ const patentDocumentSchema = new mongoose.Schema({
     Name_of_Authorize: { type: String },
     Mobile_No: { type: String },
     date: { type: Date, required: true },
-    zipFile: { type: String },
-    files: [{ type: String }],
-    figureImages: [{ type: String }],
-    officer_signature: { type: String }
+    zipFile: {
+        url: String,
+        public_id: String
+    },
+    files: [
+        {
+            url: String,
+            public_id: String
+        }
+    ],
+    figureImages: [
+        {
+            url: String,
+            public_id: String
+        }
+    ],
+    officer_signature: {
+        url: String,
+        public_id: String
+    }
 }, { timestamps: true });
 
 export default mongoose.model("PatentDocument", patentDocumentSchema);
