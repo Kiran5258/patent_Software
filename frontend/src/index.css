@@ -154,3 +154,6 @@ button:disabled {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+/* .date{
+  background-color: wit;
+} */

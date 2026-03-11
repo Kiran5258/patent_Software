@@ -1,6 +1,6 @@
 import archiver from "archiver";
 import ImageModule from "docxtemplater-image-module-free";
-import { uploadBuffer, deleteFile } from "../utils/cloudinary.js";
+import { saveBufferLocally as uploadBuffer, deleteLocalFile as deleteFile } from "../utils/fileUpload.js";
 import PatentDocument from "../models/PatentDocument.js";
 import FigureDocument from "../models/FigureDocument.js";
 import path from "path";
@@ -14,9 +14,19 @@ import axios from "axios";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const getBufferFromUrl = async (url) => {
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
-    return Buffer.from(response.data);
+const getBufferFromUrl = async (urlOrPath) => {
+    try {
+        if (urlOrPath.startsWith('http')) {
+            const response = await axios.get(urlOrPath, { responseType: 'arraybuffer' });
+            return Buffer.from(response.data);
+        }
+        // If it's a local relative path stored in public_id
+        const absolutePath = path.join(__dirname, '../../uploads', urlOrPath);
+        return await fs.promises.readFile(absolutePath);
+    } catch (error) {
+        console.error("Error getting buffer:", error);
+        throw error;
+    }
 };
 
 // POST /api/
@@ -31,13 +41,13 @@ export const createDocuments = async (req, res) => {
 
             // Upload figures to Cloudinary
             const figureUploads = await Promise.all(
-                figureFiles.map(f => uploadBuffer(f.buffer, 'figures'))
+                figureFiles.map(f => uploadBuffer(f.buffer, 'figures', { originalname: f.originalname }))
             );
 
             // Upload signature to Cloudinary
             let signatureData = null;
             if (signatureFile) {
-                signatureData = await uploadBuffer(signatureFile.buffer, 'signatures');
+                signatureData = await uploadBuffer(signatureFile.buffer, 'signatures', { originalname: signatureFile.originalname });
             }
 
             const docxBuffer = await generateFigureDoc({
@@ -87,13 +97,13 @@ export const createDocuments = async (req, res) => {
 
         // Upload figures
         const figureUploads = await Promise.all(
-            figureFiles.map(f => uploadBuffer(f.buffer, 'figures'))
+            figureFiles.map(f => uploadBuffer(f.buffer, 'figures', { originalname: f.originalname }))
         );
 
         // Upload signature
         let sigData = null;
         if (sigFile) {
-            sigData = await uploadBuffer(sigFile.buffer, 'signatures');
+            sigData = await uploadBuffer(sigFile.buffer, 'signatures', { originalname: sigFile.originalname });
         }
 
         const getOrdinalDay = (n) => {
@@ -128,10 +138,14 @@ export const createDocuments = async (req, res) => {
                 getSize() { return [150, 60]; }
             });
             const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true, modules: [imageModule] });
+            const isOffline = req.user?.type === 'offline';
+
             doc.render({
                 TITLE, APPLICANT_NAME, APPLICANT_ADDRESS, email_id, technical_field,
-                date: finalFormattedDate, patent_officer, PANO: PANO || "INPA-4655",
-                Name_of_Authorize: Name_of_Authorize || patent_officer, Mobile_No: Mobile_No || "9943235198",
+                date: finalFormattedDate, patent_officer, 
+                PANO: PANO || (isOffline ? "" : "INPA-4655"),
+                Name_of_Authorize: Name_of_Authorize || (isOffline ? "" : patent_officer), 
+                Mobile_No: Mobile_No || (isOffline ? "" : "9943235198"),
                 objective, summary, background, brief_description, detailed_description,
                 abstract, claims, signature: sigFile?.buffer, inventors: processedInventors
             });
@@ -297,10 +311,13 @@ export const deleteDocument = async (req, res) => {
 
 // GET /api/download/:filename
 export const downloadDocs = async (req, res) => {
-    // Note: With Cloudinary, filenames are not used as before. 
-    // This endpoint can remain for backward compatibility or redirect to a Cloudinary URL if mapped.
-    // However, since we now store full URLs, the frontend should use those directly.
-    res.status(400).json({ message: "Please use Cloudinary URLs directly for downloads" });
+    const { filename } = req.params;
+    const filePath = path.join(__dirname, "../../output", filename);
+    if (fs.existsSync(filePath)) {
+        res.download(filePath);
+    } else {
+        res.status(404).json({ message: "File not found" });
+    }
 };
 
 // PUT /api/:id
@@ -323,7 +340,7 @@ export const updateDocuments = async (req, res) => {
 
             if (figureFiles.length > 0) {
                 const newUploads = await Promise.all(
-                    figureFiles.map(f => uploadBuffer(f.buffer, 'figures'))
+                    figureFiles.map(f => uploadBuffer(f.buffer, 'figures', { originalname: f.originalname }))
                 );
                 figureUploads = [...figureUploads, ...newUploads];
             }
@@ -415,7 +432,7 @@ export const updateDocuments = async (req, res) => {
             figureUploads = existing.map(f => typeof f === 'string' ? JSON.parse(f) : f);
         }
         if (figureFiles.length > 0) {
-            const newUploads = await Promise.all(figureFiles.map(f => uploadBuffer(f.buffer, 'figures')));
+            const newUploads = await Promise.all(figureFiles.map(f => uploadBuffer(f.buffer, 'figures', { originalname: f.originalname })));
             figureUploads = [...figureUploads, ...newUploads];
         }
 
@@ -477,6 +494,8 @@ export const updateDocuments = async (req, res) => {
                 getSize() { return [150, 60]; }
             });
             const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true, modules: [imageModule] });
+            const isOffline = req.user?.type === 'offline';
+
             doc.render({
                 TITLE: TITLE || existingDoc.TITLE,
                 APPLICANT_NAME: APPLICANT_NAME || existingDoc.APPLICANT_NAME,
@@ -485,9 +504,9 @@ export const updateDocuments = async (req, res) => {
                 technical_field: technical_field || existingDoc.technical_field,
                 date: finalFormattedDate,
                 patent_officer: patent_officer || existingDoc.patent_officer,
-                PANO: PANO || existingDoc.PANO || "INPA-4655",
-                Name_of_Authorize: Name_of_Authorize || existingDoc.Name_of_Authorize || patent_officer || existingDoc.patent_officer,
-                Mobile_No: Mobile_No || existingDoc.Mobile_No || "9943235198",
+                PANO: PANO || existingDoc.PANO || (isOffline ? "" : "INPA-4655"),
+                Name_of_Authorize: Name_of_Authorize || existingDoc.Name_of_Authorize || (isOffline ? "" : (patent_officer || existingDoc.patent_officer)),
+                Mobile_No: Mobile_No || existingDoc.Mobile_No || (isOffline ? "" : "9943235198"),
                 objective: objective || existingDoc.objective,
                 summary: summary || existingDoc.summary,
                 background: background || existingDoc.background,
@@ -570,16 +589,48 @@ export const proxyDownload = async (req, res) => {
         const { url, filename } = req.query;
         if (!url) return res.status(400).json({ message: "URL is required" });
 
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        let data;
+        let contentType;
 
-        const ext = filename.split('.').pop();
-        const contentType = ext === 'zip' ? 'application/zip' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        const backendUrl = process.env.BACKEND_URL || 'http://localhost:5001';
+        
+        // Check if it's a local file URL (either matches our backendUrl OR is any localhost variant)
+        const isLocal = url.startsWith(backendUrl) || url.includes('localhost:5000') || url.includes('localhost:5001') || url.includes('127.0.0.1');
+
+        if (isLocal) {
+            // Local file, read directly from disk to be efficient
+            // Extract the path after the origin (e.g., /output/filename.zip)
+            const urlObj = new URL(url);
+            const relativePath = urlObj.pathname;
+            
+            let filePath;
+            if (relativePath.startsWith('/output/')) {
+                filePath = path.join(__dirname, "../../output", relativePath.replace('/output/', ''));
+            } else if (relativePath.startsWith('/uploads/')) {
+                filePath = path.join(__dirname, "../../", relativePath);
+            }
+
+            if (filePath && fs.existsSync(filePath)) {
+                data = await fs.promises.readFile(filePath);
+            } else {
+                // Fallback to axios if path parsing fails but it's our URL
+                const response = await axios.get(url, { responseType: 'arraybuffer' });
+                data = response.data;
+            }
+        } else {
+            // External URL (like old Cloudinary links)
+            const response = await axios.get(url, { responseType: 'arraybuffer' });
+            data = response.data;
+        }
+
+        const ext = filename ? filename.split('.').pop() : 'docx';
+        contentType = ext === 'zip' ? 'application/zip' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
         res.setHeader('Content-Type', contentType);
-        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-        res.send(Buffer.from(response.data));
+        res.setHeader('Content-Disposition', `attachment; filename="${filename || 'download'}"`);
+        res.send(Buffer.from(data));
     } catch (error) {
         console.error("Proxy download error:", error);
-        res.status(500).json({ message: "Failed to download from cloud" });
+        res.status(500).json({ message: "Failed to download file" });
     }
 };

@@ -10,7 +10,7 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
         TITLE: '',
         APPLICANT_NAME: '',
         APPLICANT_ADDRESS: '',
-        email_id: '',
+        email_id: 'ipmc@krce.ac.in',
         technical_field: '',
         objective: '',
         summary: '',
@@ -87,16 +87,16 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
     const applyTemplate = (college) => {
         const templates = {
             KRCE: {
-                name: "K RAMAKRISHNAN COLLEGE OF ENGINEERING",
+                name: "K.RAMAKRISHNAN COLLEGE OF ENGINEERING",
                 address: "The Principal, K.Ramakrishnan College of Engineering, NH-45, Samayapuram, Trichy, Tamil Nadu, India- 621112"
             },
             KRCT: {
-                name: "K RAMAKRISHNAN COLLEGE OF TECHNOLOGY",
-                address: "The Principal, K.Ramakrishnan College of Technology, NH-45, Samayapuram, Trichy, Tamil Nadu, India- 621112"
+                name: "K.RAMAKRISHNAN COLLEGE OF TECHNOLOGY",
+                address: "The Principal, K.Ramakrishnan College of Technology, Kariyamanikam Road, Samayapuram, Trichy, Tamil Nadu, India- 621112"
             },
             MKCE: {
-                name: "M. KUMARASAMY COLLEGE OF ENGINEERING",
-                address: "The Principal, M. Kumarasamy College of Engineering, Thalavapalayam, Karur-639113, TN, India"
+                name: "M.KUMARASAMY COLLEGE OF ENGINEERING",
+                address: "The Principal, M.Kumarasamy College of Engineering, Thalavapalayam, Karur-639113, TN, India"
             }
         };
 
@@ -237,7 +237,7 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                     <input name="TITLE" placeholder="Enter title" value={formData.TITLE || ''} onChange={handleInputChange} required />
                 </div>
 
-                {!initialData && user?.type !== 'attorney' && (
+                {user && user.type !== 'attorney' && (
                     <div style={{ marginBottom: '1.5rem' }}>
                         <label style={{ display: 'block', marginBottom: '0.75rem' }}>Quick Templates</label>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
@@ -250,6 +250,11 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                     </div>
                 )}
 
+                <div className="input-group">
+                    <label>Submission Date</label>
+                    <input className='date' type="date" name="date" value={formData.date} onChange={handleInputChange} required />
+                </div>
+
                 <div className="grid-cols-2">
                     <div className="input-group">
                         <label>Applicant Name</label>
@@ -257,7 +262,7 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                     </div>
                     <div className="input-group">
                         <label>Email ID</label>
-                        <input type="email" name="email_id" value={formData.email_id || ''} onChange={handleInputChange} required />
+                        <input type="email" name="email_id" value="ipmc@krce.ac.in" onChange={handleInputChange} required />
                     </div>
                 </div>
 
@@ -268,7 +273,7 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
 
                 <div className="grid-cols-2">
                     <div className="input-group">
-                        <label>Patent Officer / Authorizer</label>
+                        <label>patent_officer</label>
                         <input name="patent_officer" value={formData.patent_officer || ''} onChange={handleInputChange} required />
                     </div>
                     {user?.type !== 'offline' && (
@@ -357,10 +362,6 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                     <label>Claims</label>
                     <textarea name="claims" rows="4" value={formData.claims} onChange={handleInputChange} required />
                 </div>
-                <div className="input-group">
-                    <label>Submission Date</label>
-                    <input type="date" name="date" value={formData.date} onChange={handleInputChange} required />
-                </div>
 
                 <div style={{ marginTop: '2rem', borderTop: '1px solid var(--glass-border)', paddingTop: '2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
@@ -401,10 +402,8 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                                 )}
                             </div>
                             <div style={{ borderTop: '1px solid #333', paddingTop: '0.4rem', marginTop: 'auto', textAlign: 'right' }}>
-                                <div style={{ fontWeight: 'bold' }}>To, The Patent Officer,</div>
                                 {formData.officer_signature && <img src={getImgUrl(formData.officer_signature)} style={{ height: '20px', margin: '3px 0' }} />}
-                                <div style={{ fontWeight: 'bold' }}>Name: {formData.patent_officer || '...'}</div>
-                                <div style={{ fontSize: '0.35rem' }}>Official Jurisdiction</div>
+                                <div style={{ fontWeight: 'bold' }}>patent_officer: {formData.patent_officer || '...'}</div>
                             </div>
                         </div>
                     </div>
@@ -417,9 +416,9 @@ const DocumentForm = ({ initialData, onCancel, user }) => {
                         <div style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <CheckCircle size={20} /> Documents ready!
                         </div>
-                        {downloadUrl && user?.role === 'admin' && (
+                        {downloadUrl && (
                             <a
-                                href={`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/download-proxy?url=${encodeURIComponent(downloadUrl)}&filename=patent_docs.zip`}
+                                href={`${import.meta.env.VITE_API_URL || 'http://localhost:5001/api'}/download-proxy?url=${encodeURIComponent(downloadUrl)}&filename=${formData._id || 'patent'}.zip`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="btn-primary"

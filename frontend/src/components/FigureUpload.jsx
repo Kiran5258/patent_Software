@@ -5,6 +5,8 @@ import api from '../utils/api';
 
 const FigureUpload = ({ initialData, onCancel, user }) => {
     const [files, setFiles] = useState([]);
+    const [documents, setDocuments] = useState([]);
+    const [selectedDocId, setSelectedDocId] = useState('');
     const [applicantName, setApplicantName] = useState('');
     const [patent_officer, setPatentOfficer] = useState('Albert Francis');
     const [signature, setSignature] = useState(null);
@@ -20,7 +22,29 @@ const FigureUpload = ({ initialData, onCancel, user }) => {
             if (initialData.figures) setFiles(initialData.figures);
             if (initialData.signaturePath) setSignature(initialData.signaturePath);
         }
-    }, [initialData]);
+        // If user is admin, fetch available documents for selection
+        if (user?.role === 'admin') {
+            api.get('/').then(res => {
+                setDocuments(res.data || []);
+            }).catch(() => {});
+        }
+    }, [initialData, user]);
+
+    // When admin selects a document, load its data into the form
+    useEffect(() => {
+        if (!selectedDocId) return;
+        api.get(`/${selectedDocId}`).then(res => {
+            const doc = res.data;
+            // PatentDocument uses APPLICANT_NAME, FigureDocument uses applicantName
+            setApplicantName(doc.APPLICANT_NAME || doc.applicantName || '');
+            setPatentOfficer(doc.patent_officer || doc.patentOfficer || doc.patent_officer || '');
+            // Load figures (could be figureImages or figures)
+            if (doc.figureImages) setFiles(doc.figureImages);
+            else if (doc.figures) setFiles(doc.figures);
+            // Load signature
+            setSignature(doc.officer_signature || doc.signaturePath || null);
+        }).catch(() => {});
+    }, [selectedDocId]);
 
     const getImgUrl = (file) => {
         if (!file) return '';
@@ -53,11 +77,11 @@ const FigureUpload = ({ initialData, onCancel, user }) => {
             formData.append('applicantName', applicantName);
             formData.append('patent_officer', patent_officer);
 
+            // Append files: new uploads as 'figures', existing as 'existingFigures' (multiple entries)
             files.forEach(file => {
                 if (file instanceof File) {
                     formData.append('figures', file);
                 } else {
-                    // Keep existing figures on update
                     formData.append('existingFigures', JSON.stringify(file));
                 }
             });
@@ -69,8 +93,10 @@ const FigureUpload = ({ initialData, onCancel, user }) => {
             }
 
             let response;
-            if (initialData?._id) {
-                response = await api.put(`/${initialData._id}`, formData, {
+            // If admin selected an existing document, send PUT to that document to regenerate using existing figures/signature
+            const targetId = selectedDocId || initialData?._id;
+            if (targetId) {
+                response = await api.put(`/${targetId}`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' }
                 });
             } else {

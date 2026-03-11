@@ -19,7 +19,7 @@ const patentDocumentSchema = new mongoose.Schema({
     detailed_description: { type: String, required: true },
     abstract: { type: String, required: true },
     claims: { type: String, required: true },
-    patent_officer: { type: String, required: true },
+    patent_officer: { type: String, },
     PANO: { type: String },
     Name_of_Authorize: { type: String },
     Mobile_No: { type: String },

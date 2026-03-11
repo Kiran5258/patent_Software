@@ -84,19 +84,17 @@ function App() {
           display: 'flex',
           gap: '0.5rem'
         }}>
-          {(user.role !== 'admin' || editingDoc) && (
-            <button
-              onClick={() => { setActiveTab('documents'); setEditingDoc(null); }}
-              style={{
-                background: activeTab === 'documents' ? 'var(--primary)' : 'transparent',
-                borderRadius: '14px',
-                padding: '0.75rem 1.5rem',
-                boxShadow: activeTab === 'documents' ? '0 4px 12px rgba(99, 102, 241, 0.3)' : 'none'
-              }}
-            >
-              <FileText size={18} /> {editingDoc ? 'Edit Record' : 'Patent Details'}
-            </button>
-          )}
+          <button
+            onClick={() => { setActiveTab('documents'); setEditingDoc(null); }}
+            style={{
+              background: activeTab === 'documents' ? 'var(--primary)' : 'transparent',
+              borderRadius: '14px',
+              padding: '0.75rem 1.5rem',
+              boxShadow: activeTab === 'documents' ? '0 4px 12px rgba(99, 102, 241, 0.3)' : 'none'
+            }}
+          >
+            <FileText size={18} /> {editingDoc ? 'Edit Record' : 'Patent Details'}
+          </button>
           {user.role === 'admin' && (
             <>
               <button
