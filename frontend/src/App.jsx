@@ -59,7 +59,7 @@ function App() {
           <Sparkles color="white" size={32} />
         </div>
         <h1 style={{ fontSize: '3rem', letterSpacing: '-0.02em', background: 'linear-gradient(to right, #fff, #94a3b8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          KR-IPFC
+          IPFC
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto' }}>
           The ultimate engine for rapid patent documentation
