@@ -129,7 +129,7 @@ export const createDocuments = async (req, res) => {
         const finalFormattedDate = formatDateCustom(date);
         const processedInventors = (inventors || []).map(inv => ({ ...inv, date: finalFormattedDate }));
 
-        const templates = ["Form 1.docx", "Form 2.docx", "Form 3.docx", "Form 5.docx", "Form 18.docx", "Form 28.docx"];
+        const templates = ["Form 1.docx", "Form 2.docx", "Form 3.docx", "Form 5.docx","FORM 9.docx", "Form 18.docx", "Form 28.docx"];
         const uploadedTemplates = [];
         const docBuffers = [];
 
