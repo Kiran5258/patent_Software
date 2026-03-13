@@ -62,7 +62,7 @@ function App() {
           KR-IPFC
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.25rem', maxWidth: '600px', margin: '0 auto' }}>
-          The ultimate engine for rapid patent documentation and figure generation.
+          The ultimate engine for rapid patent documentation
         </p>
       </header>
 
