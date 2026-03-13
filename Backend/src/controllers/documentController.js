@@ -29,6 +29,11 @@ const getBufferFromUrl = async (urlOrPath) => {
     }
 };
 
+const formatDocText = (text) => {
+    if (!text) return "";
+    return text.toString().trim().replace(/\r\n/g, "\n");
+};
+
 // POST /api/
 export const createDocuments = async (req, res) => {
     try {
@@ -141,13 +146,25 @@ export const createDocuments = async (req, res) => {
             const isOffline = req.user?.type === 'offline';
 
             doc.render({
-                TITLE, APPLICANT_NAME, APPLICANT_ADDRESS, email_id, technical_field,
-                date: finalFormattedDate, patent_officer, 
+                TITLE: (TITLE || "").toUpperCase(),
+                APPLICANT_NAME: (APPLICANT_NAME || "").toUpperCase(),
+                APPLICANT_ADDRESS: formatDocText(APPLICANT_ADDRESS),
+                email_id: email_id || "ipmc@krce.ac.in",
+                technical_field: formatDocText(technical_field),
+                date: finalFormattedDate,
+                patent_officer, 
                 PANO: PANO || (isOffline ? "" : "INPA-4655"),
                 Name_of_Authorize: Name_of_Authorize || (isOffline ? "" : patent_officer), 
                 Mobile_No: Mobile_No || (isOffline ? "" : "9943235198"),
-                objective, summary, background, brief_description, detailed_description,
-                abstract, claims, signature: sigFile?.buffer, inventors: processedInventors
+                objective: formatDocText(objective),
+                summary: formatDocText(summary),
+                background: formatDocText(background),
+                brief_description: formatDocText(brief_description),
+                detailed_description: formatDocText(detailed_description),
+                abstract: formatDocText(abstract),
+                claims: formatDocText(claims),
+                signature: sigFile?.buffer,
+                inventors: processedInventors
             });
 
             const docBuffer = doc.getZip().generate({ type: "nodebuffer" });
@@ -497,23 +514,23 @@ export const updateDocuments = async (req, res) => {
             const isOffline = req.user?.type === 'offline';
 
             doc.render({
-                TITLE: TITLE || existingDoc.TITLE,
-                APPLICANT_NAME: APPLICANT_NAME || existingDoc.APPLICANT_NAME,
-                APPLICANT_ADDRESS: APPLICANT_ADDRESS || existingDoc.APPLICANT_ADDRESS,
-                email_id: email_id || existingDoc.email_id,
-                technical_field: technical_field || existingDoc.technical_field,
+                TITLE: (TITLE || existingDoc.TITLE || "").toUpperCase(),
+                APPLICANT_NAME: (APPLICANT_NAME || existingDoc.APPLICANT_NAME || "").toUpperCase(),
+                APPLICANT_ADDRESS: formatDocText(APPLICANT_ADDRESS || existingDoc.APPLICANT_ADDRESS),
+                email_id: email_id || existingDoc.email_id || "ipmc@krce.ac.in",
+                technical_field: formatDocText(technical_field || existingDoc.technical_field),
                 date: finalFormattedDate,
                 patent_officer: patent_officer || existingDoc.patent_officer,
                 PANO: PANO || existingDoc.PANO || (isOffline ? "" : "INPA-4655"),
                 Name_of_Authorize: Name_of_Authorize || existingDoc.Name_of_Authorize || (isOffline ? "" : (patent_officer || existingDoc.patent_officer)),
                 Mobile_No: Mobile_No || existingDoc.Mobile_No || (isOffline ? "" : "9943235198"),
-                objective: objective || existingDoc.objective,
-                summary: summary || existingDoc.summary,
-                background: background || existingDoc.background,
-                brief_description: brief_description || existingDoc.brief_description,
-                detailed_description: detailed_description || existingDoc.detailed_description,
-                abstract: abstract || existingDoc.abstract,
-                claims: claims || existingDoc.claims,
+                objective: formatDocText(objective || existingDoc.objective),
+                summary: formatDocText(summary || existingDoc.summary),
+                background: formatDocText(background || existingDoc.background),
+                brief_description: formatDocText(brief_description || existingDoc.brief_description),
+                detailed_description: formatDocText(detailed_description || existingDoc.detailed_description),
+                abstract: formatDocText(abstract || existingDoc.abstract),
+                claims: formatDocText(claims || existingDoc.claims),
                 signature: sigBuffer,
                 inventors: processedInventors
             });
